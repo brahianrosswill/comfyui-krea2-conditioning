@@ -15,7 +15,7 @@ A single, fast ComfyUI node that gives you direct control over the multi-layer t
 
 ## The problem this fixes
 
-The original rebalance node reweights Krea 2's 12 Qwen3-VL conditioning taps — then hits the *entire* tensor with a global **multiplier** (default `4.0`). The two compound: with the default weights the conditioning magnitude is inflated **~8.7×** (`4×` multiplier × ~`2.2×` from the per-layer gains). That doesn't just "boost" — it destabilises the output. In our [A/B below](#proof--real-ab-on-krea-2-turbo) on Krea 2 Turbo, the ×4 default introduced **skin artifacts (scarring + a birthmark-style spot) and likeness drift (a younger face, a head tilt)** — with *no* visible saturation change. The rebalance works against itself.
+The original rebalance node reweights Krea 2's 12 Qwen3-VL conditioning taps — then hits the *entire* tensor with a global **multiplier** (default `4.0`). The two compound: with the default weights the conditioning magnitude is inflated **~8.7×** (`4×` multiplier × ~`2.2×` from the per-layer gains). That doesn't just "boost" — it destabilises the output. In our [A/B below](#proof--real-ab-on-krea-2-turbo) on Krea 2 Turbo, the ×4 default introduced **skin artifacts (scarring + a birthmark-style spot) and likeness drift (a younger face, head and body tilt)** — with *no* visible saturation change. The rebalance works against itself.
 
 This node flips the default: **RMS-renormalised per-layer rebalancing.** It shifts the *ratios* between taps (boost the deep detail layers relative to the shallow ones) while **holding the overall conditioning magnitude constant** — so the output stays clean and true to the baseline (no artifacts, no likeness drift).
 
@@ -28,7 +28,7 @@ Same prompt, same seed (`123`), 8-step Turbo. The **only** difference is the con
 | variant | mean diff vs baseline | what actually changed (human eye) |
 |---|---|---|
 | **our quality mode** (`renormalize=true`, `multiplier=1.0`) | **8.0 / 255** — 96.9% similar | stays true to baseline — clean, no artifacts |
-| **legacy ×4** (`renormalize=false`, `multiplier=4.0` = nova default) | **21.8 / 255** — 91.4% | skin scarring + a birthmark-style spot, a younger face, a head tilt |
+| **legacy ×4** (`renormalize=false`, `multiplier=4.0` = nova default) | **21.8 / 255** — 91.4% | skin scarring + a birthmark-style spot, a younger face, head and body tilt |
 
 There was **no visible saturation difference** between any of the three — the ×4 default's real failure mode is **artifacts and likeness drift**, not "overbaked color." Renormalising holds the magnitude (and the likeness).
 

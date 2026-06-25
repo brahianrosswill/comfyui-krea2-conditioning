@@ -8,8 +8,10 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Hu White" }]
 keywords = ["comfyui", "krea-2", "conditioning", "diffusion", "custom-node"]
 
+[project.urls]
+Repository = "https://github.com/huwhitememes/comfyui-krea2-conditioning"
+
 [tool.comfy]
 PublisherId = "huwhitememes"
 DisplayName = "Krea 2 Conditioning Control"
 Icon = "🎛️"
-Repository = "https://github.com/huwhitememes/comfyui-krea2-conditioning"

@@ -7,7 +7,7 @@
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-custom%20node-7b3fce.svg)
 ![Krea 2](https://img.shields.io/badge/Krea%202-Raw%20%7C%20Turbo-fa8c16.svg)
 
-A single, fast ComfyUI node that gives you direct control over the multi-layer text conditioning Krea 2 feeds to its denoiser — and does it **without the quality collapse the original "rebalance" approach causes when pushed.**
+A single, fast ComfyUI node that gives you direct control over the multi-layer text conditioning Krea 2 feeds to its denoiser — and does it **without the quality collapse the original "rebalance" approach can cause when pushed.**
 
 > Forked from — and crediting — [`nova452/ComfyUI-ConditioningKrea2Rebalance`](https://github.com/nova452/ComfyUI-ConditioningKrea2Rebalance) (Apache-2.0), which introduced the per-layer-weighting idea. This fork fixes its main flaw (below), adds presets, and hardens the engineering.
 
@@ -15,9 +15,9 @@ A single, fast ComfyUI node that gives you direct control over the multi-layer t
 
 ## The problem this fixes
 
-The original rebalance node reweights Krea 2's 12 Qwen3-VL conditioning taps — then hits the *entire* tensor with a global **multiplier** (default `4.0`). The two compound: with the default weights the conditioning magnitude is inflated **~8.7×** (`4×` multiplier × ~`2.2×` from the per-layer gains). That doesn't just "boost" — it destabilises the output. In our [A/B below](#proof--real-ab-on-krea-2-turbo) on Krea 2 Turbo, the ×4 default introduced **skin artifacts (scarring + a birthmark-style spot) and likeness drift (a younger face, head and body tilt)** — with *no* visible saturation change. The rebalance works against itself.
+The original rebalance node reweights Krea 2's 12 Qwen3-VL conditioning taps — then hits the *entire* tensor with a global **multiplier** (default `4.0`). The two compound: with the default weights the conditioning magnitude is inflated **~8.7×** (`4×` multiplier × ~`2.2×` from the per-layer gains). That doesn't just "boost" — it destabilises the conditioning. That magnitude blowup is the setup-independent part; *how it presents* depends on your setup. Some report it as **oversaturation**. In **our** tests (Krea 2 Turbo) it showed up as **skin artifacts (scarring + a birthmark-style spot) and likeness drift (a younger face, head and body tilt)**, with no visible saturation shift. We're not claiming oversaturation doesn't occur — only that in our setup the dominant symptom was different. Either way the root cause is the same inflated magnitude, and the rebalance works against itself.
 
-This node flips the default: **RMS-renormalised per-layer rebalancing.** It shifts the *ratios* between taps (boost the deep detail layers relative to the shallow ones) while **holding the overall conditioning magnitude constant** — so the output stays clean and true to the baseline (no artifacts, no likeness drift).
+This node flips the default: **RMS-renormalised per-layer rebalancing.** It shifts the *ratios* between taps (boost the deep detail layers relative to the shallow ones) while **holding the overall conditioning magnitude constant** — so the denoiser sees a rebalanced signal rather than an inflated one (in our tests: no artifacts, no likeness drift).
 
 ## Proof — real A/B on Krea 2 Turbo
 
@@ -30,7 +30,7 @@ Same prompt, same seed (`123`), 8-step Turbo. The **only** difference is the con
 | **our quality mode** (`renormalize=true`, `multiplier=1.0`) | **8.0 / 255** — 96.9% similar | stays true to baseline — clean, no artifacts |
 | **legacy ×4** (`renormalize=false`, `multiplier=4.0` = nova default) | **21.8 / 255** — 91.4% | skin scarring + a birthmark-style spot, a younger face, head and body tilt |
 
-There was **no visible saturation difference** between any of the three — the ×4 default's real failure mode is **artifacts and likeness drift**, not "overbaked color." Renormalising holds the magnitude (and the likeness).
+In this test there was **no visible saturation shift** between the three — but that's just our test (Turbo, 8 steps), not a claim that oversaturation never occurs. It's a commonly reported symptom on other setups (Raw, different weights, quantisation); here the magnitude blowup presented as **artifacts and likeness drift** instead. Renormalising holds the magnitude — which is the part that actually matters.
 
 ## Why it works
 

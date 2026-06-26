@@ -11,3 +11,7 @@ env/
 .vscode/
 
 .tmp/
+
+# Distribution artifacts (zip-of-the-repo; regenerate per release, don't commit)
+*.zip
+node.zip

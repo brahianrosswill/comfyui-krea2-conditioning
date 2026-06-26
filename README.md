@@ -34,7 +34,7 @@ In this test there was **no visible saturation shift** between the three — but
 
 ## Why it works
 
-Krea 2 doesn't condition on a single text embedding — it aggregates **12 hidden-state layers** from its Qwen3-VL text encoder into one packed tensor of shape `(B, seq, 12·2560)`. Shallow taps carry broad syntax and composition; **deeper taps carry the fine detail** (identity, texture, precise attributes) that can end up under-represented. This node reshapes that tensor to expose the layer axis and lets you reweight each tap independently before the denoiser ever sees it.
+Krea 2 doesn't condition on a single text embedding — it aggregates **12 hidden-state layers** from its Qwen3-VL text encoder into one packed tensor of shape `(B, seq, 12·2560)`. Shallow taps carry broad syntax and composition; **deeper taps carry the fine detail** (identity, texture, precise attributes) that can end up under-represented. That under-representation has a known mechanism: Krea 2's learned `txtfusion.projector` combines the 12 taps **contrastively** — positive on the mid layers, **negative on the deep ones** — so deep detail is actively subtracted during aggregation (shown by [fblissjr's interpretability work](https://github.com/fblissjr/krea-explorations)). Boosting the deep taps recovers what the aggregation removes. This node reshapes that tensor to expose the layer axis and lets you reweight each tap independently before the denoiser ever sees it.
 
 ```
  conditioning   (B, seq, 12·2560)
@@ -112,6 +112,13 @@ Full credit to **nova452** for the per-layer-weighting technique.
 
 - **Krea 2** (Raw / Turbo) — primary target.
 - Generalises to any diffusion model that conditions on a flattened multi-layer hidden-state stack; just match the weight count to the tap count.
+
+## Related work
+
+- **nova452 — [`ComfyUI-ConditioningKrea2Rebalance`](https://github.com/nova452/ComfyUI-ConditioningKrea2Rebalance)**: introduced per-layer conditioning reweighting for Krea 2 — the activation-space technique this node refines with magnitude-preserving defaults.
+- **fblissjr — [`krea-explorations`](https://github.com/fblissjr/krea-explorations)**: interpretability + a **weight-space** complement. Rather than scaling the conditioning activations, it edits the learned `txtfusion.projector` weight (the `[1,12]` combiner over the taps), and shows that projector is **contrastive** (mid-minus-deep) and that **L20** is a universal attention hub. The two approaches sit at different stages of the pipeline — ours pre-scales the input taps; theirs re-weights the combination — and are combinable.
+
+This node is the activation-space, magnitude-preserving entry in that lineage.
 
 ## Credits
 

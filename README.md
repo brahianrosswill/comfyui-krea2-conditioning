@@ -32,6 +32,8 @@ Same prompt, same seed (`123`), 8-step Turbo. The **only** difference is the con
 
 In this test there was **no visible saturation shift** between the three — but that's just our test (Turbo, 8 steps), not a claim that oversaturation never occurs. It's a commonly reported symptom on other setups (Raw, different weights, quantisation); here the magnitude blowup presented as **artifacts and likeness drift** instead. Renormalising holds the magnitude — which is the part that actually matters.
 
+*Reproduced on a second, independent render* (a different prompt at 1024² / 8-step Turbo): **10.2 / 255 — 96.0% similar**, still clean. The quality-preserving behaviour is prompt-stable, not a one-off.
+
 ## Why it works
 
 Krea 2 doesn't condition on a single text embedding — it aggregates **12 hidden-state layers** from its Qwen3-VL text encoder into one packed tensor of shape `(B, seq, 12·2560)`. Shallow taps carry broad syntax and composition; **deeper taps carry the fine detail** (identity, texture, precise attributes) that can end up under-represented. That under-representation has a known mechanism: Krea 2's learned `txtfusion.projector` combines the 12 taps **contrastively** — positive on the mid layers, **negative on the deep ones** — so deep detail is actively subtracted during aggregation (shown by [fblissjr's interpretability work](https://github.com/fblissjr/krea-explorations)). Boosting the deep taps recovers what the aggregation removes. This node reshapes that tensor to expose the layer axis and lets you reweight each tap independently before the denoiser ever sees it.
@@ -119,6 +121,8 @@ Full credit to **nova452** for the per-layer-weighting technique.
 - **fblissjr — [`krea-explorations`](https://github.com/fblissjr/krea-explorations)**: interpretability + a **weight-space** complement. Rather than scaling the conditioning activations, it edits the learned `txtfusion.projector` weight (the `[1,12]` combiner over the taps), and shows that projector is **contrastive** (mid-minus-deep) and that **L20** is a universal attention hub. The two approaches sit at different stages of the pipeline — ours pre-scales the input taps; theirs re-weights the combination — and are combinable.
 
 This node is the activation-space, magnitude-preserving entry in that lineage.
+
+**Cross-tested** (same seed/prompt, Krea 2 Turbo): the activation-space lever is the more forgiving of the two — a 5× deep-tap boost shifts the image ~10/255 and stays coherent, while a 4-band projector-weight edit only reaches a comparable magnitude around strength ~0.1 and breaks by 1.0 (the projector coefficients *are* the combination, so they're ~8× more sensitive). The two read as **complementary, not redundant**.
 
 ## Credits
 
